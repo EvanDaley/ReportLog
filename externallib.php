@@ -70,23 +70,6 @@ class local_reportlog_external extends external_api {
 
         return "Hello {$USER->firstname}.\nParameter received: {$params['param1']}\nAccessing logs table... \nCount: {$count} records!\nFirst 5 Records:\n{$records}";
     }
-//        // Capability checking
-//        // OPTIONAL but in most web service it should present
-//        if (!has_capability('moodle/user:viewdetails', $context)) {
-//            throw new moodle_exception('cannotviewprofile');
-//        }
-//
-////        return 'tomato';
-//        $count = $DB->count_records('log_display');
-////        $record1 = $DB->get_records_sql("select * from 'log_display'");
-////        return 'here';
-////        $record1 = json_encode($record1);
-//
-//        $message = "Hello {$USER->firstname}.\nAccessing logs table... \nCount: {$count} records! \nParameter received: {$params['param1']}"
-//        return "{$message}";
-//    }
-
-
 
     /**
      * Returns description of method result value
