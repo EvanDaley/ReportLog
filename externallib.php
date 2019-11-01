@@ -31,27 +31,27 @@ class local_reportlog_external extends external_api {
      */
     public static function getlog_parameters() {
         return new external_function_parameters(
-                array('welcomemessage' => new external_value(PARAM_TEXT, 'The welcome message. By default it is "Hello world,"', VALUE_DEFAULT, 'Hello world, '))
+                array('param1' => new external_value(PARAM_TEXT, 'The first param. By default it is "Param1!"', VALUE_DEFAULT, 'Param1! '))
         );
     }
 
     /**
      * Returns welcome message
-     * @param string $welcomemessage
+     * @param string $param1
      * @return string welcome message
      * @throws coding_exception
      * @throws invalid_parameter_exception
      * @throws moodle_exception
      * @throws restricted_context_exception
      */
-    public static function getlog($welcomemessage = 'Hello world, ') {
+    public static function getlog($param1 = 'Param1! ') {
         global $USER;
         global $DB;
 
         // Parameter validation
         // REQUIRED
         $params = self::validate_parameters(self::getlog_parameters(),
-                array('welcomemessage' => $welcomemessage));
+                array('param1' => $param1));
 
         // Context validation
         // OPTIONAL but in most web service it should present
@@ -64,10 +64,29 @@ class local_reportlog_external extends external_api {
             throw new moodle_exception('cannotviewprofile');
         }
 
-        $count = $DB->count_records('config_plugins');
+        $count = $DB->count_records('log_display');
+        $records = $DB->get_records_sql("select * from mdl_log_display limit 5");
+        $records = json_encode($records);
 
-        return $params['welcomemessage'] . $USER->firstname . ". You have {$count} plugins!" ;
+        return "Hello {$USER->firstname}.\nParameter received: {$params['param1']}\nAccessing logs table... \nCount: {$count} records!\nFirst 5 Records:\n{$records}";
     }
+//        // Capability checking
+//        // OPTIONAL but in most web service it should present
+//        if (!has_capability('moodle/user:viewdetails', $context)) {
+//            throw new moodle_exception('cannotviewprofile');
+//        }
+//
+////        return 'tomato';
+//        $count = $DB->count_records('log_display');
+////        $record1 = $DB->get_records_sql("select * from 'log_display'");
+////        return 'here';
+////        $record1 = json_encode($record1);
+//
+//        $message = "Hello {$USER->firstname}.\nAccessing logs table... \nCount: {$count} records! \nParameter received: {$params['param1']}"
+//        return "{$message}";
+//    }
+
+
 
     /**
      * Returns description of method result value
