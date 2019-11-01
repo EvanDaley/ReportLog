@@ -1,0 +1,5 @@
+// 1- Install the plugin
+// 2- Enable web service advance feature (Admin > Advanced features)
+// 3- Enable REST and XMLRPC protocol (Admin > Plugins > Web services > Manage protocols)
+// 4- (optional) Create a token for a specific user and for the service 'My service' (Admin > Plugins > Web services > Manage tokens). If you don't want to create a token, you can use a user's login credentials when configuring the node client.
+// 5- Enable specific external services. We need 'Moodle Mobile Web Service' and 'My service' to be enabled. Click edit and then check the enable box

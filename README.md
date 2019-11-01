@@ -1,2 +1,0 @@
-# ReportLog
-A Moodle Plugin
