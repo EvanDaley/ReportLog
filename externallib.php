@@ -31,44 +31,90 @@ class local_reportlog_external extends external_api {
      */
     public static function getlog_parameters() {
         return new external_function_parameters(
-                array('param1' => new external_value(PARAM_TEXT, 'The first param. By default it is "Param1!"', VALUE_DEFAULT, 'Param1! '))
+                array('queryObject' => new external_value(PARAM_RAW, 'The query options!"', VALUE_DEFAULT, '{}! '))
         );
     }
 
     /**
      * Returns welcome message
-     * @param string $param1
+     * @param string $queryObject
      * @return string welcome message
      * @throws coding_exception
      * @throws invalid_parameter_exception
      * @throws moodle_exception
      * @throws restricted_context_exception
      */
-    public static function getlog($param1 = 'Param1! ') {
+    public static function getlog($queryObject = 'Param1! ') {
         global $USER;
         global $DB;
 
-        // Parameter validation
-        // REQUIRED
-        $params = self::validate_parameters(self::getlog_parameters(),
-                array('param1' => $param1));
+        $response = [
+            'status' => 200
+        ];
 
-        // Context validation
-        // OPTIONAL but in most web service it should present
-        $context = get_context_instance(CONTEXT_USER, $USER->id);
-        self::validate_context($context);
+        // TODO: PREVENT SQL INJECTION
+        // TODO: PREVENT SQL INJECTION
+        // TODO: PREVENT SQL INJECTION
 
-        // Capability checking
-        // OPTIONAL but in most web service it should present
-        if (!has_capability('moodle/user:viewdetails', $context)) {
-            throw new moodle_exception('cannotviewprofile');
+        // TODO: Verify that 'desiredColumns' are valid.
+
+        try {
+            $params = self::validate_parameters(self::getlog_parameters(),
+                array('queryObject' => $queryObject));
+
+            $context = get_context_instance(CONTEXT_USER, $USER->id);
+            self::validate_context($context);
+
+            if (!has_capability('moodle/user:viewdetails', $context)) {
+                throw new moodle_exception('cannotviewprofile');
+            }
+
+            $queryObject = json_decode($params['queryObject'], true);
+
+            $columnList = '';
+            if (isset($queryObject['desiredColumns']) && count($queryObject['desiredColumns']) > 0) {
+                $columnList = implode(', ', $queryObject['desiredColumns']);
+            } else {
+                $columnList = '*';
+            }
+
+            $queryString = "select {$columnList} from mdl_logstore_standard_log where ";
+
+            if ($queryObject['dateRange'] && $queryObject['dateRange']['start'] && $queryObject['dateRange']['end']) {
+                $queryString .= "timecreated > {$queryObject['dateRange']['start']} ";
+                $queryString .= "and timecreated < {$queryObject['dateRange']['end']}";
+            } else {
+                return json_encode([
+                    'status' => 422,
+                    'message' => "'dateRange.start' and 'dateRange.end' are required.",
+                ]);
+            }
+
+            if ($queryObject['exactMatches']) {
+                foreach ($queryObject['exactMatches']  as $column=>$value) {
+                    $queryString .= " AND {$column} = '{$value}' ";
+                }
+            }
+
+            $countQuery = "select count(*) from ($queryString) as counted";
+
+            if (isset($queryObject['debug']) && $queryObject['debug'] === true) {
+                $response['selectQuery'] = $queryString;
+                $response['countQuery'] = $countQuery;
+            }
+
+            if (isset($queryObject['withCount']) && $queryObject['withCount'] === true) {
+                $response['count'] = $DB->count_records_sql($countQuery);
+            }
+
+            $response['data'] = $DB->get_records_sql($queryString);
+
+        } catch (\Throwable $e) {
+            $response['status'] = 500;
+            $response['message'] = $e->getMessage();
         }
 
-        $count = $DB->count_records('log_display');
-        $records = $DB->get_records_sql("select * from mdl_log_display limit 5");
-        $records = json_encode($records);
-
-        return "Hello {$USER->firstname}.\nParameter received: {$params['param1']}\nAccessing logs table... \nCount: {$count} records!\nFirst 5 Records:\n{$records}";
+        return json_encode($response);
     }
 
     /**
@@ -76,6 +122,6 @@ class local_reportlog_external extends external_api {
      * @return external_description
      */
     public static function getlog_returns() {
-        return new external_value(PARAM_TEXT, 'The welcome message + user first name');
+        return new external_value(PARAM_RAW, 'The welcome message + user first name');
     }
 }
