@@ -3,3 +3,7 @@
 3- Enable REST and XMLRPC protocol (Admin > Plugins > Web services > Manage protocols)
 4- Create a token for a specific user and for the service 'reportlog' (Admin > Plugins > Web services > Manage tokens).
 5- Enable specific external services. We need 'reportlog' to be enabled and 'Moodle Mobile Web Service' is useful for debugging the client.
+
+Development Example:
+1- Download the client: https://github.com/EvanDaley/node_client
+2- Configure the node client with the correct credentials and validate that the plugin is accessible
