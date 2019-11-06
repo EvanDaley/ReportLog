@@ -52,8 +52,6 @@ class local_reportlog_external extends external_api {
             'status' => 200
         ];
 
-        // TODO: PREVENT SQL INJECTION
-        // TODO: PREVENT SQL INJECTION
         // TODO: Verify that 'desiredColumns' are valid.
         // TODO: Verify that 'desiredColumns' are valid.
 
