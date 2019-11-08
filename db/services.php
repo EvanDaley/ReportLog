@@ -27,7 +27,7 @@ $functions = array(
                 'classname'   => 'local_reportlog_external',
                 'methodname'  => 'getlog',
                 'classpath'   => 'local/reportlog/externallib.php',
-                'description' => 'Return Hello World FIRSTNAME. Can change the text (Hello World) sending a new text as parameter',
+                'description' => 'To pull the activity logs',
                 'type'        => 'read',
         )
 );
