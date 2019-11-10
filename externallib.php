@@ -52,74 +52,30 @@ class local_reportlog_external extends external_api {
             'status' => 200
         ];
 
+        $plugin = (new self);
+
         try {
-            $params = self::validate_parameters(self::getlog_parameters(),
-                array('queryObject' => $queryObject));
+            $queryObject = $plugin->validateAndParseInput($USER, $queryObject);
 
-            $context = get_context_instance(CONTEXT_USER, $USER->id);
-            self::validate_context($context);
-
-            if (!has_capability('moodle/user:viewdetails', $context)) {
-                throw new moodle_exception('cannotviewprofile');
-            }
-
-            $queryObject = json_decode($params['queryObject'], true);
-
-            // SELECT
-            $columnList = '';
-            if (isset($queryObject['desiredColumns']) && count($queryObject['desiredColumns']) > 0) {
-                $columnList = implode(', ', $queryObject['desiredColumns']);
-            } else {
-                $columnList = '*';
-            }
-
-            $queryString = "select {$columnList} from mdl_logstore_standard_log ";
-
-            // JOINS
-            if (isset($queryObject['joinWithGroups']) && count($queryObject['joinWithGroups']) > 0) {
-                $queryString .= ' join mdl_groups_members on mdl_groups_members.userid = mdl_logstore_standard_log.userid ';
-            }
-
-            $queryString .= " where ";
-
-            // TIMESTAMPS
-            if (isset($queryObject['dateRange']) && $queryObject['dateRange']['start'] && $queryObject['dateRange']['end']) {
-                $queryString .= "timecreated > {$queryObject['dateRange']['start']} ";
-                $queryString .= "and timecreated < {$queryObject['dateRange']['end']}";
-            } else {
+            if (!isset($queryObject['dateRange']) || !isset($queryObject['dateRange']['start']) || !isset($queryObject['dateRange']['end'])) {
                 return json_encode([
                     'status' => 422,
                     'message' => "'dateRange.start' and 'dateRange.end' are required.",
                 ]);
             }
 
-            // EQUALITY COMPARISON
-            if (isset($queryObject['where'])) {
-                foreach ($queryObject['where']  as $column=>$value) {
-                    $queryString .= " AND {$column} = '{$value}' ";
-                }
-            }
-
-            // "WHERE IN" COMPARISION
-            if (isset($queryObject['whereIn'])) {
-                foreach($queryObject['whereIn'] as $column=>$array) {
-                    $arrayString = implode(',', $array);
-                    $queryString .= " AND {$column} in ({$arrayString}) " ;
-                }
-            }
+            $queryString = $plugin->getSelectSql($queryObject);
+            $queryString .= $plugin->getJoinSql($queryObject);
+            $queryString .= $plugin->getDateSql($queryObject);
+            $queryString .= $plugin->getWhereSql($queryObject);
+            $queryString .= $plugin->getWhereInSql($queryObject);
 
             // PREPARE TO COUNT RECORDS
             $pageSize = 500;
-            if (isset($queryObject['pageSize'])) {
-                $pageSize = $queryObject['pageSize'];
-            }
-
             $page = 1;
-            if (isset($queryObject['page'])) {
-                $page = $queryObject['page'];
-            }
-
-            $countQuery = "select count(*) from ($queryString) as counted";
+            if (isset($queryObject['pageSize'])) { $pageSize = $queryObject['pageSize']; }
+            if (isset($queryObject['page'])) { $page = $queryObject['page']; }
+            $countQuery = "select count(*) from ({$queryString}) as counted";
 
             // SET UP DEBUGGING INFO
             if (isset($queryObject['debug']) && $queryObject['debug'] === true) {
@@ -132,14 +88,13 @@ class local_reportlog_external extends external_api {
                 $response['page_count'] = ceil($DB->count_records_sql($countQuery) / $pageSize);
             }
 
-            // LIMIT AND OFFSET
+            // PREPARE LIMIT AND OFFSET
             $pageOffset = ($page -1)*$pageSize;
             $queryString .= " limit {$pageSize} offset {$pageOffset} ";
 
             // RUN QUERY
             $response['data'] = $DB->get_records_sql($queryString);
 
-            $response['test'] = (new self)->mapColumnName();
         } catch (\Throwable $e) {
             $response['status'] = 500;
             $response['message'] = $e->getMessage();
@@ -148,8 +103,67 @@ class local_reportlog_external extends external_api {
         return json_encode($response);
     }
 
-    public static function mapColumnName() {
-        return 'someString';
+    public static function validateAndParseInput($USER, $queryObject) {
+        $params = self::validate_parameters(self::getlog_parameters(), array('queryObject' => $queryObject));
+
+        $queryObject = json_decode($params['queryObject'], true);
+
+        $context = get_context_instance(CONTEXT_USER, $USER->id);
+        self::validate_context($context);
+
+        if (!has_capability('moodle/user:viewdetails', $context)) {
+            throw new moodle_exception('cannotviewprofile');
+        }
+
+        return $queryObject;
+    }
+
+    public static function getSelectSql($queryObject) {
+        if (isset($queryObject['desiredColumns']) && count($queryObject['desiredColumns']) > 0) {
+            $result = implode(', ', $queryObject['desiredColumns']);
+        } else {
+            $result = '*';
+        }
+
+        return "select {$result} from mdl_logstore_standard_log ";
+    }
+
+    public static function getJoinSql($queryObject) {
+        $result = '';
+        if (isset($queryObject['joinWithGroups']) && count($queryObject['joinWithGroups']) > 0) {
+            $result .= ' join mdl_groups_members on mdl_groups_members.userid = mdl_logstore_standard_log.userid ';
+        }
+
+        return "{$result} where ";
+    }
+
+    public static function getDateSql($queryObject) {
+        $result = "timecreated > {$queryObject['dateRange']['start']} ";
+        $result .= "and timecreated < {$queryObject['dateRange']['end']}";
+
+        return $result;
+    }
+
+    public static function getWhereSql($queryObject) {
+        $result = '';
+        if (isset($queryObject['where'])) {
+            foreach ($queryObject['where']  as $column=>$value) {
+                $result .= " AND {$column} = '{$value}' ";
+            }
+        }
+
+        return $result;
+    }
+    public static function getWhereInSql($queryObject) {
+        $result = '';
+        if (isset($queryObject['whereIn'])) {
+            foreach($queryObject['whereIn'] as $column=>$array) {
+                $arrayString = implode(',', $array);
+                $result .= " AND {$column} in ({$arrayString}) " ;
+            }
+        }
+
+        return $result;
     }
 
     /**
