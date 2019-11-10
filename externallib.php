@@ -139,12 +139,17 @@ class local_reportlog_external extends external_api {
             // RUN QUERY
             $response['data'] = $DB->get_records_sql($queryString);
 
+            $response['test'] = (new self)->mapColumnName();
         } catch (\Throwable $e) {
             $response['status'] = 500;
             $response['message'] = $e->getMessage();
         }
 
         return json_encode($response);
+    }
+
+    public static function mapColumnName() {
+        return 'someString';
     }
 
     /**
