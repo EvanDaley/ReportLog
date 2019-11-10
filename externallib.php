@@ -52,9 +52,6 @@ class local_reportlog_external extends external_api {
             'status' => 200
         ];
 
-        // TODO: Verify that 'desiredColumns' are valid.
-        // TODO: Verify that 'desiredColumns' are valid.
-
         try {
             $params = self::validate_parameters(self::getlog_parameters(),
                 array('queryObject' => $queryObject));
@@ -68,6 +65,7 @@ class local_reportlog_external extends external_api {
 
             $queryObject = json_decode($params['queryObject'], true);
 
+            // SELECT
             $columnList = '';
             if (isset($queryObject['desiredColumns']) && count($queryObject['desiredColumns']) > 0) {
                 $columnList = implode(', ', $queryObject['desiredColumns']);
@@ -75,9 +73,17 @@ class local_reportlog_external extends external_api {
                 $columnList = '*';
             }
 
-            $queryString = "select {$columnList} from mdl_logstore_standard_log where ";
+            $queryString = "select {$columnList} from mdl_logstore_standard_log ";
 
-            if ($queryObject['dateRange'] && $queryObject['dateRange']['start'] && $queryObject['dateRange']['end']) {
+            // JOINS
+            if (isset($queryObject['joinWithGroups']) && count($queryObject['joinWithGroups']) > 0) {
+                $queryString .= ' join mdl_groups_members on mdl_groups_members.userid = mdl_logstore_standard_log.userid ';
+            }
+
+            $queryString .= " where ";
+
+            // TIMESTAMPS
+            if (isset($queryObject['dateRange']) && $queryObject['dateRange']['start'] && $queryObject['dateRange']['end']) {
                 $queryString .= "timecreated > {$queryObject['dateRange']['start']} ";
                 $queryString .= "and timecreated < {$queryObject['dateRange']['end']}";
             } else {
@@ -87,23 +93,50 @@ class local_reportlog_external extends external_api {
                 ]);
             }
 
-            if ($queryObject['exactMatches']) {
-                foreach ($queryObject['exactMatches']  as $column=>$value) {
+            // EQUALITY COMPARISON
+            if (isset($queryObject['where'])) {
+                foreach ($queryObject['where']  as $column=>$value) {
                     $queryString .= " AND {$column} = '{$value}' ";
                 }
             }
 
+            // "WHERE IN" COMPARISION
+            if (isset($queryObject['whereIn'])) {
+                foreach($queryObject['whereIn'] as $column=>$array) {
+                    $arrayString = implode(',', $array);
+                    $queryString .= " AND {$column} in ({$arrayString}) " ;
+                }
+            }
+
+            // PREPARE TO COUNT RECORDS
+            $pageSize = 500;
+            if (isset($queryObject['pageSize'])) {
+                $pageSize = $queryObject['pageSize'];
+            }
+
+            $page = 1;
+            if (isset($queryObject['page'])) {
+                $page = $queryObject['page'];
+            }
+
             $countQuery = "select count(*) from ($queryString) as counted";
 
+            // SET UP DEBUGGING INFO
             if (isset($queryObject['debug']) && $queryObject['debug'] === true) {
                 $response['selectQuery'] = $queryString;
                 $response['countQuery'] = $countQuery;
             }
 
+            // RUN COUNT
             if (isset($queryObject['withCount']) && $queryObject['withCount'] === true) {
-                $response['count'] = $DB->count_records_sql($countQuery);
+                $response['page_count'] = ceil($DB->count_records_sql($countQuery) / $pageSize);
             }
 
+            // LIMIT AND OFFSET
+            $pageOffset = ($page -1)*$pageSize;
+            $queryString .= " limit {$pageSize} offset {$pageOffset} ";
+
+            // RUN QUERY
             $response['data'] = $DB->get_records_sql($queryString);
 
         } catch (\Throwable $e) {
