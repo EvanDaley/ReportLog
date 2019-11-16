@@ -1,3 +1,5 @@
+A Moodle plugin that exposes the standard log as webservice. 
+
 1- Install the plugin
 2- Enable web service advance feature (Admin > Advanced features)
 3- Enable REST and XMLRPC protocol (Admin > Plugins > Web services > Manage protocols)
